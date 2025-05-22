@@ -1,0 +1,146 @@
+/* General styling */
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  padding: 30px;
+  background: linear-gradient(to center, #c4d8e8, #cedadf);
+  color: #2c3e50;
+  max-width: 900px;
+  margin: auto;
+}
+
+h1 {
+  font-size: 2.2em;
+  margin-bottom: 30px;
+  text-align: center;
+  color: #2b353f;
+}
+
+/* Input and button styling */
+label {
+  display: inline-block;
+  margin: 10px 10px 5px 0;
+  font-weight: 500;
+}
+
+input, button, select {
+  padding: 10px 14px;
+  margin: 5px 8px;
+  border-radius: 10px;
+  border: 2px solid #abaaaa;
+  font-size: 1em;
+  transition: all 1.3s ease;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.28);
+}
+
+input:focus, select:focus {
+  border-color: #485e6d;
+  outline: none;
+  box-shadow: 0 0 6px rgba(52, 152, 219, 0.3);
+}
+
+button {
+  background-color: #3498db;
+  color: white;
+  border: none;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 10px;
+}
+
+button:hover {
+  background-color: #0b5e92;
+  box-shadow: 0 4px 12px rgba(11, 11, 11, 0.2);
+  transform: translateY(-2.2px);
+}
+
+/* Frame visualization */
+.frame-box {
+  display: flex;
+  gap: 18px;
+  margin-top: 25px;
+  justify-content: center;
+  flex-wrap: wrap;
+  animation: fadeIn 1.6s ease;
+
+}
+
+.frame {
+  padding: 20px 0;
+  border: 2px solid #3498db;
+  background: #fefefe;
+  border-radius: 12px;
+  width: 90px;
+  text-align: center;
+  font-weight: bold;
+  color: #3498db;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transition: background-color 0.4s ease;
+  animation: fadeIn 0.6s ease;
+}
+
+/* Highlight effect for recently loaded frames */
+/* .highlight {
+  background-color: #d1ecf1 !important;
+  border-color: #17a2b8;
+  color: #17a2b8;
+  animation: pulse 0.4s ease-in-out;
+} */
+
+/* Stats and logs styling */
+.stats, .log {
+  background: white;
+  padding: 18px;
+  margin-top: 30px;
+  border-radius: 12px;
+  border: 2px solid #ddd;
+  max-height: 250px;
+  overflow-y: auto;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+.stats {
+  font-size: 1.1em;
+  font-weight: 500;
+  color: #31475e;
+}
+
+.log div {
+  margin-bottom: 6px;
+  padding: 6px 0;
+  border-bottom: 1px solid #d3d2d2;
+  font-size: 0.96em;
+  color: #292727;
+}
+
+hr {
+  border: none;
+  height: 2px;
+  background-color: #3498db;
+  margin: 25px auto;
+  width: 60%;
+}
+
+/* Chart canvas styling */
+canvas#chartCanvas {
+  margin-top: 20px;
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+  background-color: white;
+  border: 2px solid #ccc;
+  padding: 10px;
+  border-radius: 10px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+}
+
+/* Animations */
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
