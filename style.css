@@ -1,8 +1,7 @@
-/* General styling */
 body {
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   padding: 30px;
-  background: linear-gradient(to center, #c4d8e8, #cedadf);
+  background: linear-gradient(to right, #eeafd3, #809399);
   color: #2c3e50;
   max-width: 900px;
   margin: auto;
@@ -56,15 +55,14 @@ button:hover {
 /* Frame visualization */
 .frame-box {
   display: flex;
-  gap: 18px;
-  margin-top: 25px;
-  justify-content: center;
+  gap: 10px;
   flex-wrap: wrap;
-  animation: fadeIn 1.6s ease;
+  justify-content: center;
+  margin-top: 10px;
 
 }
 
-.frame {
+/* .frame {
   padding: 20px 0;
   border: 2px solid #3498db;
   background: #fefefe;
@@ -76,16 +74,156 @@ button:hover {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   transition: background-color 0.4s ease;
   animation: fadeIn 0.6s ease;
-}
+} */
 
 /* Highlight effect for recently loaded frames */
-/* .highlight {
+.highlight {
   background-color: #d1ecf1 !important;
   border-color: #17a2b8;
   color: #17a2b8;
   animation: pulse 0.4s ease-in-out;
-} */
+}
+@keyframes pulseHighlight {
+  0% { background-color: #d1ecf1; transform: scale(1); }
+  50% { background-color: #17a2b8; transform: scale(1.1); }
+  100% { background-color: #d1ecf1; transform: scale(1); }
+}
 
+.frame.highlight {
+  animation: pulseHighlight 0.8s ease forwards;
+}
+
+/* .frame {
+  position: relative;  
+  padding: 20px 0;
+  border: 2px solid #3498db;
+  background: #fefefe;
+  border-radius: 12px;
+  width: 90px;
+  text-align: center;
+  font-weight: bold;
+  color: #3498db;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transition: background-color 0.4s ease;
+  animation: fadeIn 0.6s ease;
+  overflow: hidden;
+} */
+.frame {
+  transition: background-color 0.3s ease, transform 0.3s ease;
+  padding: 10px;
+  border: 2px solid #3498db;
+  border-radius: 8px;
+  margin: 5px;
+  display: inline-block;
+  width: 90px;
+  height: 60px;
+  text-align: center;
+  vertical-align: middle;
+  font-weight: bold;
+  font-size: 16px;
+  background-color: #f9f9f9;
+  color: #3498db;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transition: transform 0.3s ease, background-color 0.5s ease;
+  animation: slideIn 0.3s ease;
+}
+.frame.hit {
+  background-color: #2ecc71; /* green */
+  animation: fade 0.5s ease-in-out;
+}
+
+.frame.fault {
+  background-color: #e74c3c; /* red */
+  animation: fade 0.5s ease-in-out;
+}
+
+@keyframes fade {
+  0% { transform: scale(1.1); opacity: 0.5; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+
+@keyframes flashHit {
+  from { transform: scale(1.1); }
+  to { transform: scale(1); }
+}
+
+@keyframes flashFault {
+  from { transform: scale(1.1); }
+  to { transform: scale(1); }
+}
+
+
+/* Page block inside frame */
+.page-block {
+  position: absolute;
+  top: 0;
+  left: 100%; /* start outside right */
+  width: 90px;
+  height: 100%;
+  background-color: #4caf50;
+  color: white;
+  font-size: 1.4em;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-radius: 10px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+  user-select: none;
+  opacity: 0;
+  transition: none;
+}
+
+/* Animate sliding in from right */
+.page-block.slide-in {
+  animation: slideIn 0.5s forwards;
+}
+
+/* Animate sliding out to left */
+.page-block.slide-out {
+  animation: slideOut 0.5s forwards;
+}
+
+/* Keyframes */
+/* @keyframes slideIn {
+  0% {
+    left: 100%;
+    opacity: 0;
+  }
+  100% {
+    left: 0;
+    opacity: 1;
+  }
+}
+
+@keyframes slideOut {
+  0% {
+    left: 0;
+    opacity: 1;
+  }
+  100% {
+    left: -100%;
+    opacity: 0;
+  }
+} */
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.hit {
+  background-color: #2ecc71 !important; /* green */
+}
+
+.fault {
+  background-color: #e74c3c !important; /* red */
+}
 /* Stats and logs styling */
 .stats, .log {
   background: white;
@@ -143,4 +281,16 @@ canvas#chartCanvas {
 @keyframes fadeIn {
   from { opacity: 0; }
   to { opacity: 1; }
+}
+
+.replacement-arrow {
+  font-size: 24px;
+  color: #2980b9;
+  animation: bounce 1s ease;
+}
+
+@keyframes bounce {
+  0% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+  100% { transform: translateY(0); }
 }
