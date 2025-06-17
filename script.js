@@ -1,5 +1,6 @@
 let memory = [];
 let pageTable = [];
+let segments = []; // Stores segments with base and limit
 let history = [];
 let hits = 0;
 let faults = 0;
@@ -21,8 +22,20 @@ function initialize() {
 
   frameSize = parseInt(frameSizeInput.value);
   numFrames = parseInt(numFramesInput.value);
-  memory = new Array(numFrames).fill(null);
-  pageTable = [];
+
+  memory = Array.from({ length: numFrames }, () =>
+    new Array(frameSize).fill(null)
+  );
+
+  // Initialize segments with dummy data
+  segments = [
+    { base: 0, limit: 100 },
+    { base: 100, limit: 150 },
+    { base: 250, limit: 300 },
+  ];
+
+  updateSegmentationTable();
+
   hits = 0;
   faults = 0;
   fifoPointer = 0;
@@ -50,28 +63,38 @@ function log(message, isReplacement = false) {
   }
 }
 
+function clearHighlights() {
+  const frameElements = document.querySelectorAll(".frame");
+  frameElements.forEach((div) => {
+    div.classList.remove("hit", "fault");
+  });
+}
+
 function updateView(highlight = null, page = null) {
   const framesView = document.getElementById("framesView");
   const statsDiv = document.getElementById("stats");
   framesView.innerHTML = "";
 
-  memory.forEach((p, index) => {
-    const div = document.createElement("div");
-    div.className = "frame";
+  for (let frameIndex = 0; frameIndex < numFrames; frameIndex++) {
+    for (let slotIndex = 0; slotIndex < frameSize; slotIndex++) {
+      const div = document.createElement("div");
+      div.className = "frame";
 
-    if (p !== null) {
-      div.textContent = "Page " + p;
-    } else {
-      div.textContent = "[Empty]";
+      const slotPage = memory[frameIndex][slotIndex];
+      if (slotPage !== null) {
+        div.textContent = "Page " + slotPage;
+      } else {
+        div.textContent = "[Empty]";
+      }
+
+      if (highlight && slotPage === page) {
+        div.classList.add(highlight); // 'hit' or 'fault'
+      }
+
+      div.title = `Frame ${frameIndex}, Slot ${slotIndex}`;
+      framesView.appendChild(div);
     }
-
-    if (highlight && p === page) {
-      div.classList.add(highlight); // 'hit' or 'fault'
-      setTimeout(() => div.classList.remove(highlight), 1000);
-    }
-
-    framesView.appendChild(div);
-  });
+  }
 
   const total = hits + faults;
   const hitRatio = total > 0 ? ((hits / total) * 100).toFixed(2) : 0;
@@ -97,15 +120,16 @@ function loadPage(page = null) {
   }
 
   const algo = window.currentAlgorithm || "LRU";
+  const flatMemory = memory.flat();
 
-  if (memory.includes(page)) {
+  if (flatMemory.includes(page)) {
     hits++;
     log(`Page ${page} hit.`);
     playSound("hit");
 
     if (algo === "LRU") {
-      const index = accessHistory.indexOf(page);
-      if (index !== -1) accessHistory.splice(index, 1);
+      const idx = accessHistory.indexOf(page);
+      if (idx !== -1) accessHistory.splice(idx, 1);
       accessHistory.push(page);
     }
 
@@ -114,81 +138,198 @@ function loadPage(page = null) {
     faults++;
     playSound("fault");
 
-    if (memory.includes(null)) {
-      const emptyIndex = memory.indexOf(null);
-      memory[emptyIndex] = page;
-      if (algo === "LRU") accessHistory.push(page);
-      log(`Page ${page} loaded into empty frame.`);
-    } else {
-      if (algo === "FIFO") {
-        const removed = memory[fifoPointer];
-        memory[fifoPointer] = page;
-        fifoPointer = (fifoPointer + 1) % numFrames;
-        log(`Page ${removed} replaced with ${page} using FIFO.`, true);
-      } else if (algo === "LRU") {
-        const lruPage = accessHistory.shift();
-        const lruIndex = memory.indexOf(lruPage);
-        memory[lruIndex] = page;
-        accessHistory.push(page);
-        log(`Page ${lruPage} replaced with ${page} using LRU.`, true);
+    let emptySlot = null;
+    outerLoop: for (let frameIndex = 0; frameIndex < numFrames; frameIndex++) {
+      for (let slotIndex = 0; slotIndex < frameSize; slotIndex++) {
+        if (memory[frameIndex][slotIndex] === null) {
+          emptySlot = [frameIndex, slotIndex];
+          break outerLoop;
+        }
       }
     }
+
+    if (emptySlot) {
+      const [f, s] = emptySlot;
+      memory[f][s] = page;
+      if (algo === "LRU") accessHistory.push(page);
+      log(`Page ${page} loaded into empty slot at Frame ${f}, Slot ${s}.`);
+    } else {
+      if (algo === "FIFO") {
+        const totalSlots = numFrames * frameSize;
+        const globalIndex = fifoPointer % totalSlots;
+        const frameIndex = Math.floor(globalIndex / frameSize);
+        const slotIndex = globalIndex % frameSize;
+
+        const removed = memory[frameIndex][slotIndex];
+        memory[frameIndex][slotIndex] = page;
+        fifoPointer = (fifoPointer + 1) % totalSlots;
+
+        log(
+          `Page ${removed} replaced with ${page} using FIFO at Frame ${frameIndex}, Slot ${slotIndex}.`,
+          true
+        );
+      } else if (algo === "LRU") {
+        const lruPage = accessHistory.shift();
+
+        let lruPos = null;
+        outer: for (let f = 0; f < numFrames; f++) {
+          for (let s = 0; s < frameSize; s++) {
+            if (memory[f][s] === lruPage) {
+              lruPos = [f, s];
+              break outer;
+            }
+          }
+        }
+
+        if (lruPos) {
+          const [f, s] = lruPos;
+          memory[f][s] = page;
+          accessHistory.push(page);
+          log(
+            `Page ${lruPage} replaced with ${page} using LRU at Frame ${f}, Slot ${s}.`,
+            true
+          );
+        }
+      }
+    }
+
     updateView("fault", page);
   }
-  updateView();
+
+  updatePageTable();
 }
 
-function resetMemory() {
-  const segmentLog = document.getElementById("segmentLog");
-  initialize();
-  segmentLog.innerHTML = "";
-  log("Memory reset.");
+function updateSegmentationTable(){
+  const tbody = document.querySelector("#segmentationTable tbody");
+
+  tbody.innerHTML = '';
+  segments.forEach((seg, idx) => {
+    const row = document.createElement("tr");
+
+    const segmentCell = document.createElement("td");
+
+    segmentCell.textContent = idx;
+
+    const baseCell = document.createElement("td");
+
+    baseCell.textContent = seg.base;
+
+    const limitCell = document.createElement("td");
+
+    limitCell.textContent = seg.limit;
+
+    row.appendChild(segmentCell);
+    row.appendChild(baseCell);
+    row.appendChild(limitCell);
+    tbody.appendChild(row);
+  });
 }
+
 
 function loadSequence() {
   const sequenceInput = document.getElementById("sequenceInput");
-  const sequence = sequenceInput.value.split(",").map(x => parseInt(x.trim())).filter(x => !isNaN(x));
+  const sequence = sequenceInput.value
+    .split(",")
+    .map((x) => parseInt(x.trim()))
+    .filter((x) => !isNaN(x));
   for (let page of sequence) {
     loadPage(page);
   }
 }
 
-function loadSegment() {
-  const segmentLog = document.getElementById("segmentLog");
-  const segmentNum = document.getElementById("segmentNum");
-  const offsetVal = document.getElementById("offsetVal");
-
-  const segment = parseInt(segmentNum.value);
-  const offset = parseInt(offsetVal.value);
-  if (isNaN(segment) || isNaN(offset)) return;
-
-  const logLine = `Accessed Segment ${segment}, Offset ${offset}`;
-  const entry = document.createElement("div");
-  entry.textContent = logLine;
-  segmentLog.appendChild(entry);
-  segmentLog.scrollTop = segmentLog.scrollHeight;
+function prepareSequence() {
+  const sequenceInput = document.getElementById("sequenceInput");
+  pageSequence = sequenceInput.value
+    .split(",")
+    .map((x) => parseInt(x.trim()))
+    .filter((x) => !isNaN(x));
+  currentStep = -1;
+  updateStepIndicator();
+  resetMemory();
+  log("Sequence loaded. Use 'Next' to step through.");
 }
 
-function downloadLog() {
-  const blob = new Blob([history.join("\n")], { type: "text/plain" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "memory_log.txt";
-  a.click();
-  URL.revokeObjectURL(url);
+function nextStep() {
+  if (currentStep + 1 < pageSequence.length) {
+    currentStep++;
+    loadPage(pageSequence[currentStep]);
+    updateStepIndicator();
+  } else {
+    log("End of sequence reached.");
+    clearHighlights(); // Clear highlight colors when done
+  }
 }
+
+function prevStep() {
+  if (currentStep > 0) {
+    currentStep--;
+    resetMemory();
+    for (let i = 0; i <= currentStep; i++) {
+      loadPage(pageSequence[i]);
+    }
+    updateStepIndicator();
+  } else {
+    log("At beginning of sequence.");
+  }
+}
+
+function resetMemory() {
+  memory = Array.from({ length: numFrames }, () =>
+    new Array(frameSize).fill(null)
+  );
+  hits = 0;
+  faults = 0;
+  fifoPointer = 0;
+  accessHistory = [];
+  updateView();
+  updateChart();
+}
+
+function updateStepIndicator() {
+  const stepIndicator = document.getElementById("stepIndicator");
+  if (pageSequence.length === 0) {
+    stepIndicator.textContent = "";
+  } else {
+    stepIndicator.textContent = `Step ${currentStep + 1} of ${pageSequence.length}`;
+  }
+}
+
+function calculatePhysicalAddress(){
+  const segment = parseInt(document.getElementById("segmentInput").value);
+  const offset = parseInt(document.getElementById("offsetInput").value);
+
+  if (isNaN(segment) || isNaN(offset)) {
+    alert("Please enter a valid segment number and offset.");
+    return;
+  }
+
+  if (segment < 0 ||
+      segment >= segments.length ||
+      offset < 0 ||
+      offset >= segments[segment].limit) {
+    alert("Invalid segment or offset.");
+    return;
+  }
+
+  const physical = segments[segment].base + offset;
+
+  alert(`Physical Address = Base + Offset = ${segments[segment].base} + ${offset} = ${physical}`);
+}
+
 
 function updateChart() {
   const chartCanvas = document.getElementById("chartCanvas");
   const total = hits + faults;
   const data = {
     labels: ["Hit Ratio", "Fault Ratio"],
-    datasets: [{
-      label: "Page Statistics",
-      data: total > 0 ? [(hits / total) * 100, (faults / total) * 100] : [0, 0],
-      backgroundColor: ["#2ecc71", "#e74c3c"],
-    }],
+    datasets: [
+      {
+        label: "Page Statistics",
+        data:
+          total > 0 ? [(hits / total) * 100, (faults / total) * 100] : [0, 0],
+        backgroundColor: ["#2ecc71", "#e74c3c"],
+      },
+    ],
   };
 
   if (chart) {
@@ -211,48 +352,59 @@ function updateChart() {
   }
 }
 
-function prepareSequence() {
-  const sequenceInput = document.getElementById("sequenceInput");
-  pageSequence = sequenceInput.value.split(",").map(x => parseInt(x.trim())).filter(x => !isNaN(x));
-  currentStep = -1;
-  updateStepIndicator();
-  resetMemory();
-  log("Sequence loaded. Use 'Next' to step through.");
+function updatePageTable() {
+  const tableBody = document
+    .getElementById("pageTable")
+    .getElementsByTagName("tbody")[0];
+  tableBody.innerHTML = "";
+
+  memory.forEach((frame, frameIndex) => {
+    frame.forEach((page, slotIndex) => {
+      if (page !== null) {
+        const row = document.createElement("tr");
+
+        const logicalCell = document.createElement("td");
+        logicalCell.textContent = page;
+
+        const physicalCell = document.createElement("td");
+        physicalCell.textContent = `Frame ${frameIndex}`;
+
+        row.appendChild(logicalCell);
+        row.appendChild(physicalCell);
+        tableBody.appendChild(row);
+      }
+    });
+  });
 }
 
-function nextStep() {
-  if (currentStep + 1 < pageSequence.length) {
-    currentStep++;
-    loadPage(pageSequence[currentStep]);
-    updateStepIndicator();
+function togglePageTable() {
+  const container = document.getElementById("pageTableContainer");
+  if (container.style.display === "none") {
+    updatePageTable();
+    container.style.display = "block";
   } else {
-    log("End of sequence reached.");
+    container.style.display = "none";
   }
 }
 
-function prevStep() {
-  if (currentStep > 0) {
-    currentStep--;
-    resetMemory();
-    for (let i = 0; i <= currentStep; i++) {
-      loadPage(pageSequence[i]);
-    }
-    updateStepIndicator();
+function toggleSegmentationTable(){
+  const container = document.getElementById("segmentationTableContainer");
+
+  if (container.style.display === "none") {
+    updateSegmentationTable();
+    container.style.display = "block";
   } else {
-    log("At beginning of sequence.");
+    container.style.display = "none";
   }
 }
 
-function updateStepIndicator() {
-  const stepIndicator = document.getElementById("stepIndicator");
-  if (pageSequence.length === 0) {
-    stepIndicator.textContent = "";
-  } else {
-    stepIndicator.textContent = `Step ${currentStep + 1} of ${pageSequence.length}`;
-  }
+function downloadLog() {
+  const blob = new Blob([history.join("\n")], { type: "text/plain" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "memory_log.txt";
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
-window.onload = () => {
-  setAlgorithm("LRU");
-  initialize();
-};
